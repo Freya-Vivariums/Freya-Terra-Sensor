@@ -124,13 +124,14 @@ class BME680 {
 
     /**
     * Perform a forced-mode measurement and return compensated results.
-    * @returns Object with temperature (°C), pressure (hPa), humidity (%RH), gasResistance (Ω).
+    * @returns Object with temperature (°C), pressure (hPa), humidity (%RH), gasResistance (Ω), airQuality (0-5).
     */
     async read(): Promise<{
         temperature: number,      // in °C
         pressure: number,         // in hPa
         humidity: number,         // in %RH
-        gasResistance: number     // in Ohms
+        gasResistance: number,    // in Ohms
+        airQuality: number        // 0 (bad) to 5 (excellent) - requires 5min heater warm-up, affected by high humidity >80% RH
     }> {
         // Ensure gas sensor is enabled for this measurement (set run_gas = 1 for profile 0)
         await this.i2c.writeByte(this.address, 0x71, 0x10);  // ctrl_gas (0x71): 0x10 sets bit4 (run_gas), profile 0
@@ -169,8 +170,9 @@ class BME680 {
         const pressure = this.compensatePressure(adc_pres) / 100;         // Pa -> hPa
         const humidity = this.compensateHumidity(adc_hum);                // %RH
         const gasResistance = this.compensateGas(adc_gas_res, gas_range); // Ω
+        const airQuality = this.classifyAirQuality(gasResistance);
 
-        return { temperature, pressure, humidity, gasResistance };
+        return { temperature, pressure, humidity, gasResistance, airQuality };
     }
 
   /**
@@ -238,6 +240,29 @@ class BME680 {
         if (humidity > 100) humidity = 100;
         if (humidity < 0) humidity = 0;
         return humidity;
+    }
+
+    /**
+     * Classify gas resistance into a 0–5 air quality level.
+     *
+     * Based on observed BME680 gas resistance bands (community data from
+     * Pimoroni, G6EJD, Home Assistant). These are approximate and assume
+     * the sensor heater has been running for at least 5 minutes.
+     *
+     * 5 = Excellent  (> 400 kΩ) — clean outdoor air or very well ventilated
+     * 4 = Good       (> 250 kΩ) — normal clean indoor air
+     * 3 = Fair       (> 150 kΩ) — acceptable, typical lived-in room
+     * 2 = Poor       (> 75 kΩ)  — stale air, ventilation recommended
+     * 1 = Bad        (> 25 kΩ)  — significant VOC presence
+     * 0 = Hazardous  (≤ 25 kΩ)  — heavily polluted, investigate immediately
+     */
+    private classifyAirQuality(gasResistance: number): number {
+        if (gasResistance > 400000) return 5;
+        if (gasResistance > 250000) return 4;
+        if (gasResistance > 150000) return 3;
+        if (gasResistance > 75000) return 2;
+        if (gasResistance > 25000) return 1;
+        return 0;
     }
 
   /**

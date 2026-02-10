@@ -114,8 +114,8 @@ async function main() {
       driver.pushMeasurement('temperature', data.temperature.toFixed(1));
       driver.pushMeasurement('humidity', data.humidity.toFixed(1));
       driver.pushMeasurement('pressure', data.pressure.toFixed(1));
-      // Gas Reistance is not correctly implemented yet!
-      //driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(2));
+      //driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(0));
+      driver.pushMeasurement('airquality', data.airQuality.toFixed(0));
 
       data = await veml6030.read();
       driver.pushMeasurement('light', data.lux.toFixed(1));

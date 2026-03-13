@@ -39,8 +39,12 @@ The sensor module operates internally at 3.3V but accepts 5V input for improved 
 > The PCB is finished with a coating for resisting the humid conditions.
 
 ## Enclosure
+<img src="Documentation/Enclosure_Exploded.png" align="right" width="40%"/>
 
 The electronics are housed in a protective enclosure designed in FreeCAD. The quart tube provides UV transparency for spectral measurements while mesh-filtered ventilation in the end caps enables air exchange for climate sensing. An internal holder positions the PCB and facilitates assembly.
+
+<br clear="right"/>
+
 
 ## Software
 The sensor driver is a TypeScript/Node.js application that runs as a systemd service on Linux/Debian systems. It provides sensor readings via D-Bus for integration with the Freya Vivarium Control System.

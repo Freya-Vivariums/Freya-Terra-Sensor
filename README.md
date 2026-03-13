@@ -2,7 +2,7 @@
 
 <img src="Documentation/Sensor_rendering.png" align="right" width="40%"/>
 
-The sensor is Freya's eyes and ears in the vivarium - the hardware that enables measurement of environmental conditions experienced by the inhabitants of the vivarium.
+The **Freya Terra Sensor** is the control system's eyes and ears within the vivarium - the hardware that enables measurement of environmental conditions experienced by the inhabitants of the vivarium.
 
 #### Measurement capabilities:
 - Temperature
@@ -15,25 +15,12 @@ The sensor is Freya's eyes and ears in the vivarium - the hardware that enables 
 <br clear="right"/>
 
 ## Hardware
-Designed with KiCad, the Freya Sensor is a curated collection of high-end integrated circuit sensors for comprehensive environmental monitoring in demanding conditions, with repairability and growth in mind.
+Designed with KiCad, the Freya Sensor is a curated collection of high-end integrated circuit sensors for comprehensive environmental monitoring in demanding conditions.
 
-#### Bosch BME680
-I2C Address: **0x76**
-
-Integrated environmental sensor combining temperature, humidity, barometric pressure, and VOC gas sensing for air quality monitoring. **[Datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme680-ds001.pdf)**
-
-#### Vishay VEML6030
-I2C Address: **0x10**
-
-High-accuracy ambient light sensor with spectral response matching the human eye for precise lux measurement and photoperiod management. **[Datasheet](https://www.vishay.com/docs/84366/veml6030.pdf)**
-
-#### ams OSRAM AS7331
-I2C Address: **0x74** 
-
-Three-channel spectral UV sensor with separated UVA, UVB, and UVC detection for UV bulb monitoring and safety verification. **[Datasheet](https://look.ams-osram.com/m/1856fd2c69c35605/original/AS7331-Spectral-UVA-B-C-Sensor.pdf)**
-
-#### Power
-The sensor module operates internally at 3.3V but accepts 5V input for improved noise immunity over longer cable runs. An on-board voltage regulator (**MIC5225-3.3YM5**) provides clean 3.3V power to all sensor ICs, while a bi-directional level shifter handles I²C communication between the 5V bus and 3.3V sensors.
+- Bosch **BME680** (**0x76**): Integrated environmental sensor combining **temperature**, **humidity**, **barometric pressure**, and **VOC gas** sensing for air quality monitoring. **[Datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme680-ds001.pdf)**
+- Vishay **VEML6030** (**0x10**): High-accuracy **ambient light** sensor with spectral response matching the human eye for precise lux measurement and photoperiod management. **[Datasheet](https://www.vishay.com/docs/84366/veml6030.pdf)**
+- ams OSRAM **AS7331** (**0x74**): Three-channel **spectral UV** sensor with separated UVA, UVB, and UVC detection for UV bulb monitoring and safety verification. **[Datasheet](https://look.ams-osram.com/m/1856fd2c69c35605/original/AS7331-Spectral-UVA-B-C-Sensor.pdf)**
+- Microchip **MIC5225-3.3YM5**: The sensor module operates internally at 3.3V but accepts 5V input for improved noise immunity over longer cable runs. The on-board voltage regulator provides clean 3.3V power to all sensor ICs, while a bi-directional level shifter handles I²C communication between the 5V bus and 3.3V sensors.
 
 > [!NOTE]  
 > The PCB is finished with a coating for resisting the humid conditions.

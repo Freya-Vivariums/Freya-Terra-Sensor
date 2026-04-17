@@ -27,7 +27,7 @@ Designed with **[KiCad](https://www.kicad.org/download/)**, the Freya Terra Sens
 > The PCB is finished with a coating for resisting the humid conditions.
 
 ## Enclosure
-<img src="Documentation/Enclosure_rendering.png" align="right" width="40%"/>
+<img src="Documentation/Enclosure_Exploded.png" align="right" width="40%"/>
 
 The sensor's enclosure is designed in **[FreeCAD](https://www.freecad.org/downloads.php?lang=en)**. It protects the sensitive equipment from the challenges of the environment within the vivarium. The **quartz tube** provides full-spectrum light transparency for spectral measurements while **mesh-filtered ventilation** in the end caps enables air exchange for sensing. The internal holder positions the PCB and facilitates assembly.
 

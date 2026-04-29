@@ -86,11 +86,16 @@ export default class AS7331 {
   // Measurement mode (for CREG3)
   private static readonly MMODE_CMD = 0b01; // Command/one-shot mode (bits 7:6)
 
-  /* ── Channel sensitivity (CCLK = 1.024 MHz) ────────────────────────────── *
-   *  Datasheet §7.4 — counts per (µW/cm²) per unit gain per ms              */
-  private static readonly SENS_A = 304.0e-3; // UVA (365 nm)
-  private static readonly SENS_B = 398.0e-3; // UVB (310 nm)
-  private static readonly SENS_C = 855.0e-3; // UVC (260 nm)
+  /* ── Channel full-scale irradiance ─────────────────────────── *
+   *  Datasheet §7.4 Equation 3 / Table "Irradiance Responsivity":             *
+   *    E[µW/cm²] = raw × FSRλ / (gain × tconv[ms] × cclk[kHz])                  *
+   *  FSRλ is the irradiance that produces a full-scale count at gain=1×,        *
+   *  tconv=1 ms, cclk=1.024 MHz.                                                */
+  private static readonly FSR_A = 348160.0; // UVA (365 nm), µW/cm²
+  private static readonly FSR_B = 387072.0; // UVB (310 nm), µW/cm²
+  private static readonly FSR_C = 169984.0; // UVC (260 nm), µW/cm²
+  // cclk in kHz for cclkCode=0 (1.024 MHz). Re-compute if cclk is changed.
+  private static readonly CCLK_KHZ = 1024;
 
   /* ── Auto-range configuration ──────────────────────────────────────────── *
    *  The ladder fixes integration time at 128 ms (timeCode=7) and varies     *
@@ -238,9 +243,9 @@ export default class AS7331 {
     }
 
     return {
-      uva:             this.rawToIrradiance(raw.uvaRaw, AS7331.SENS_A),
-      uvb:             this.rawToIrradiance(raw.uvbRaw, AS7331.SENS_B),
-      uvc:             this.rawToIrradiance(raw.uvcRaw, AS7331.SENS_C),
+      uva:             this.rawToIrradiance(raw.uvaRaw, AS7331.FSR_A),
+      uvb:             this.rawToIrradiance(raw.uvbRaw, AS7331.FSR_B),
+      uvc:             this.rawToIrradiance(raw.uvcRaw, AS7331.FSR_C),
       temperature:     this.rawToTemperature(raw.tempRaw),
       gain:            this.gainFactor,
       integrationTime: this.integrationTimeMs,
@@ -353,19 +358,22 @@ export default class AS7331 {
 
   /**
    * Convert raw channel count → irradiance (µW/cm²).
-   * Equation: E = raw / (sensitivity × gain × tint_ms)
+   * Datasheet §7.4 Equation 3:
+   *   E = raw × FSRλ / (gain × tconv[ms] × cclk[kHz])
    */
-  private rawToIrradiance(raw: number, sensitivity: number): number {
-    if (raw === 0 || sensitivity === 0) return 0;
-    return raw / (sensitivity * this.gainFactor * this.integrationTimeMs);
+  private rawToIrradiance(raw: number, fsr: number): number {
+    if (raw === 0) return 0;
+    return (raw * fsr) /
+           (this.gainFactor * this.integrationTimeMs * AS7331.CCLK_KHZ);
   }
 
   /**
    * Convert raw temperature register → °C.
-   * Formula: T [°C] = (TEMP_RAW / 256) - 40
+   * Datasheet: T_chip [°C] = TEMP_RAW × 0.05 − 66.9
+   * (e.g. raw = 0x922 = 2338 → 50.0 °C)
    */
   private rawToTemperature(raw: number): number {
-    return (raw / 256.0) - 40.0;
+    return (raw * 0.05) - 66.9;
   }
 
   /**

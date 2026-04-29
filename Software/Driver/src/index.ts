@@ -119,9 +119,9 @@ async function main() {
       driver.pushMeasurement('light', data.lux.toFixed(2));
 
       data = await as7331.read();
-      driver.pushMeasurement('uva', data.uva.toFixed(1));
-      driver.pushMeasurement('uvb', data.uvb.toFixed(1));
-      driver.pushMeasurement('uvc', data.uvc.toFixed(1));
+      driver.pushMeasurement('uva', String(data.uva));
+      driver.pushMeasurement('uvb', String(data.uvb));
+      driver.pushMeasurement('uvc', String(data.uvc));
       
     }, driver.sampleInterval);
   });

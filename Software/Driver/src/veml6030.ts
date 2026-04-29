@@ -20,22 +20,28 @@ interface SensitivitySetting {
 }
 
 /**
- * Result from autoRead() method.
+ * Result of a VEML6030 measurement, including auto-range diagnostics.
  */
-export interface AutoReadResult {
-  lux: number;
-  gain: number;
-  integrationTime: number;
-  rawCount: number;
-  iterations: number;
+export interface VEML6030Reading {
+  lux: number;             // Ambient light in lux (with high-lux compensation when applicable)
+  gain: number;            // Final ALS gain factor used (2, 1, 0.25, 0.125)
+  integrationTime: number; // Final integration time used (ms)
+  rawCount: number;        // Raw 16-bit ADC count for the accepted reading
+  iterations: number;      // Number of measurement iterations performed
+  saturated: boolean;      // True if even the least-sensitive rung could not avoid saturation
 }
 
 /**
  * VEML6030 ambient light sensor driver for Raspberry Pi (Node.js).
  *
- * Measures ambient light intensity in lux via I²C, following Vishay VEML6030 datasheet (Doc. R101048).
- * Supports configurable gain and integration time, plus >1klux compensation polynomial.
- * Includes autoscaling functionality for optimal sensitivity across wide lux range.
+ * Measures ambient light intensity in lux via I²C, following Vishay VEML6030 datasheet (Doc. R101048)
+ * and application note 84367.
+ *
+ * AUTO-RANGE: read() walks a 24-rung sensitivity ladder spanning gain {2, 1, 1/4, 1/8} ×
+ * integration time {25, 50, 100, 200, 400, 800} ms (resolutions 0.0042 … 2.1504 lux/count). The
+ * "good" rung from the previous call is remembered and used as the starting point for the next
+ * call, so steady-state scenes converge in a single iteration. The high-lux compensation
+ * polynomial from app note 84367 is applied when gain ≤ 1/4 and lux > 1000.
  */
 export default class VEML6030 {
   private i2c!: PromisifiedBus;
@@ -69,10 +75,18 @@ export default class VEML6030 {
   private currentItBits!: number;
 
   /**
-   * Persistent ladder index for autoRead() method.
-   * Default: x1/8 gain, 100ms IT (index 3).
+   * Persistent ladder index used by read(). Points at the "good" rung from the
+   * previous measurement so the next read() starts from there. Initialised in
+   * init() to match whatever (gain, IT) was configured.
    */
   private ladderIndex: number = 3;
+
+  /* ── Auto-range thresholds ───────────────────────────────────────────── *
+   *  60000 / 100 give ~600× of stable headroom which, with 2× steps between *
+   *  ladder rungs, comfortably prevents oscillation under steady light.       */
+  private static readonly RAW_SATURATION = 60000;
+  private static readonly RAW_LOW_THRESHOLD = 100;
+  private static readonly MAX_AUTORANGE_ITERATIONS = 6;
 
   /**
    * Sensitivity settings ordered from lowest to highest sensitivity (coarsest to finest resolution).
@@ -163,71 +177,75 @@ export default class VEML6030 {
   }
 
   /**
-   * Read ambient light and return lux value using current fixed settings.
-   * @returns Object with `lux` (floating-point).
+   * Read ambient light with automatic gain/integration-time scaling.
+   *
+   * Starts from the previous "good" ladder rung and adjusts up/down on
+   * under-range / saturation until the raw ADC count falls inside the usable
+   * window [RAW_LOW_THRESHOLD, RAW_SATURATION). Applies the Vishay high-lux
+   * compensation polynomial when gain ≤ 1/4 and lux > 1000.
+   *
+   * The accepted rung is remembered for the next call.
    */
-  public async read(): Promise<{ lux: number }> {
-    // Read raw ALS data (reg 0x04 LSB then MSB) (§3.8)
-    const raw = await this.i2c.readWord(this.address, 0x04);
-    const counts = raw & 0xFFFF;
+  public async read(): Promise<VEML6030Reading> {
+    let iterations = 0;
+    let counts = 0;
+    let saturated = false;
 
-    // Convert to lux
-    let lux = counts * this.luxPerCount;
+    while (iterations < VEML6030.MAX_AUTORANGE_ITERATIONS) {
+      // Sync the device to whatever rung we currently want
+      const target = this.sensitivitySettings[this.ladderIndex];
+      if (
+        target.gainBits !== this.currentGainBits ||
+        target.itBits   !== this.currentItBits
+      ) {
+        await this.updateSettings(target.gainBits, target.itBits);
+        // Wait for two integration cycles so the new config has fully settled
+        await this.delay(2 * target.it + 10);
+      }
 
-    // Apply high-lux compensation if gain <=1/4 and lux >1000 (§AppNote)
-    if (this.gainValue <= 0.25 && lux > 1000) {
+      // Read raw ALS data (reg 0x04 LSB then MSB) (§3.8)
+      const raw = await this.i2c.readWord(this.address, 0x04);
+      counts = raw & 0xFFFF;
+      iterations++;
+
+      // Saturation → step DOWN the ladder (less sensitive)
+      if (counts >= VEML6030.RAW_SATURATION) {
+        if (this.ladderIndex > 0) {
+          this.ladderIndex--;
+          continue;
+        }
+        // Already at minimum sensitivity
+        saturated = true;
+        break;
+      }
+
+      // Under-range → step UP the ladder (more sensitive)
+      if (
+        counts < VEML6030.RAW_LOW_THRESHOLD &&
+        this.ladderIndex < this.sensitivitySettings.length - 1
+      ) {
+        this.ladderIndex++;
+        continue;
+      }
+
+      // Reading is in range (or we've hit a ladder edge)
+      break;
+    }
+
+    const setting = this.sensitivitySettings[this.ladderIndex];
+    let lux = counts * setting.resolution;
+    if (setting.gain <= 0.25 && lux > 1000) {
       lux = this.compensateHighLux(lux);
     }
 
-    return { lux };
-  }
-
-  /**
-   * Read ambient light with automatic gain/integration time scaling using a simple ladder algorithm.
-   * Steps up the ladder on raw count 0, down on saturation (65535), returns on any other count.
-   * @returns Object with lux value, final gain/IT settings, raw count, and iteration count.
-   */
-  public async autoRead(): Promise<AutoReadResult> {
-    let iterations = 0;
-
-    while (true) {
-      const setting = this.sensitivitySettings[this.ladderIndex];
-      const raw = await this.i2c.readWord(this.address, 0x04);
-      const counts = raw & 0xFFFF;
-      iterations++;
-
-      if (counts === 0 && this.ladderIndex < this.sensitivitySettings.length - 1) {
-        // Too dark — step up the ladder
-        this.ladderIndex++;
-        const next = this.sensitivitySettings[this.ladderIndex];
-        await this.updateSettings(next.gainBits, next.itBits);
-        await this.delay(2 * next.it + 10);
-        continue;
-      }
-
-      if (counts === 65535 && this.ladderIndex > 0) {
-        // Saturated — step down the ladder
-        this.ladderIndex--;
-        const next = this.sensitivitySettings[this.ladderIndex];
-        await this.updateSettings(next.gainBits, next.itBits);
-        await this.delay(2 * next.it + 10);
-        continue;
-      }
-
-      // Valid reading (or at the limit of the ladder)
-      let lux = counts * setting.resolution;
-      if (setting.gain <= 0.25 && lux > 1000) {
-        lux = this.compensateHighLux(lux);
-      }
-
-      return {
-        lux,
-        gain: setting.gain,
-        integrationTime: setting.it,
-        rawCount: counts,
-        iterations
-      };
-    }
+    return {
+      lux,
+      gain:            setting.gain,
+      integrationTime: setting.it,
+      rawCount:        counts,
+      iterations,
+      saturated,
+    };
   }
 
   /**

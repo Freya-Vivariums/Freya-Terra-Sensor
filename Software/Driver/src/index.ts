@@ -116,7 +116,7 @@ async function main() {
       driver.pushMeasurement('airquality', data.airQuality.toFixed(0));
 
       data = await veml6030.read();
-      driver.pushMeasurement('light', data.lux.toFixed(2));
+      driver.pushMeasurement('light', String(data.lux));
 
       data = await as7331.read();
       driver.pushMeasurement('uva', String(data.uva));

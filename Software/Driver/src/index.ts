@@ -108,8 +108,6 @@ async function main() {
 
     // 3) periodically emit
     setInterval(async() => {
-      // dummy values for testing
-  
       let data:any = await bme680.read();
       driver.pushMeasurement('temperature', data.temperature.toFixed(1));
       driver.pushMeasurement('humidity', data.humidity.toFixed(1));
@@ -118,7 +116,7 @@ async function main() {
       driver.pushMeasurement('airquality', data.airQuality.toFixed(0));
 
       data = await veml6030.read();
-      driver.pushMeasurement('light', data.lux.toFixed(1));
+      driver.pushMeasurement('light', data.lux.toFixed(2));
 
       data = await as7331.read();
       driver.pushMeasurement('uva', data.uva.toFixed(1));

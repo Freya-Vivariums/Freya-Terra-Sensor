@@ -1,7 +1,7 @@
 {
-  "name": "@freya-vivariums/freya-terra-sensor-node-red-contrib",
+  "name": "@freya-vivariums/freya-terra-sensor",
   "version": "0.0.0",
-  "description": "Node-RED node for the Freya Terra Sensor",
+  "description": "Node.js SDK for the Freya Terra Sensor D-Bus driver",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
   "homepage": "https://github.com/Freya-Vivariums/Freya-Terra-Sensor",
@@ -10,37 +10,30 @@
   },
   "private": false,
   "keywords": [
-    "node-red",
-    "node-red-node",
     "freya",
     "vivarium",
     "sensor",
     "environment",
-    "terrarium"
+    "terrarium",
+    "dbus"
   ],
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "bash ./scripts/build.sh"
-  },
-  "node-red": {
-    "version": ">=4.0.9",
-    "nodes": {
-      "freya-terra-sensor": "nodes/freya-terra-sensor/freya-terra-sensor-node.js"
-    }
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
-    "icons",
-    "nodes"
+    "build"
   ],
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "@types/node-red": "^1.3.5",
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@freya-vivariums/freya-terra-sensor": "^0.0.0"
+    "dbus-native": "^0.4.0"
   }
 }

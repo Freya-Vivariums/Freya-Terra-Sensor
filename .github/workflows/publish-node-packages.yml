@@ -1,0 +1,63 @@
+name: Publish Node.js client packages
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  publish-library:
+    name: Publish SDK library
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Software/Client/Node/Library
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build package
+        run: npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-node-red:
+    name: Publish Node-RED node
+    needs: publish-library
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Software/Client/Node/Node-RED
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build package
+        run: npm run build
+
+      - name: Publish to npm
+        working-directory: Software/Client/Node/Node-RED/build
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,5 +1,5 @@
 /*
- * Freya Vivarium Control System - Freya Terra Sensor Node
+ * Freya Vivarium Control System - Sensor Measurement Node
  * Copyright (C) 2025 Sanne 'SpuQ' Santens
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,8 +22,8 @@
  */
 
 /**
- * @file freya-terra-sensor-node.ts
- * @module freya-terra-sensor-node
+ * @file sensor-measurement-node.ts
+ * @module sensor-measurement-node
  * @description
  * Node-RED node that uses the `freya-terra-sensor` library to communicate
  * with the Freya Environment Sensor Driver over D-Bus.
@@ -41,8 +41,8 @@ interface NodeConfig extends NodeDef {
   sampleinterval: string;
 }
 
-const freyaTerraSensor: NodeInitializer = (RED: NodeAPI) => {
-  function FreyaTerraSensorNode( this: Node, config: NodeConfig ) {
+const sensorMeasurement: NodeInitializer = (RED: NodeAPI) => {
+  function SensorMeasurementNode( this: Node, config: NodeConfig ) {
     RED.nodes.createNode(this, config);
     const node = this;
 
@@ -78,7 +78,7 @@ const freyaTerraSensor: NodeInitializer = (RED: NodeAPI) => {
     });
   }
 
-  RED.nodes.registerType('freya-terra-sensor', FreyaTerraSensorNode);
+  RED.nodes.registerType('sensor-measurement', SensorMeasurementNode);
 };
 
-export = freyaTerraSensor;
+export = sensorMeasurement;

@@ -1,5 +1,5 @@
 <!--
-  Freya Vivarium Control System - Freya Terra Sensor Node HTML
+  Freya Vivarium Control System - Sensor Measurement Node HTML
   Copyright (C) 2025 Sanne 'SpuQ' Santens
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -21,7 +21,7 @@
   SOFTWARE.
 -->
 <script type="text/javascript">
-  RED.nodes.registerType('freya-terra-sensor',{
+  RED.nodes.registerType('sensor-measurement',{
     category: 'Freya Vivariums',
     color: "#70B62D",
     defaults: {
@@ -34,12 +34,12 @@
     outputLabels:["control", "status"],
     icon: "font-awesome/fa-microchip",
     label: function() {
-      return this.name || "Freya Terra Sensor";
+      return this.name || "Sensor Measurement";
     }
   });
 </script>
 
-<script type="text/html" data-template-name="freya-terra-sensor">
+<script type="text/html" data-template-name="sensor-measurement">
   <div class="form-row">
     <label for="node-input-name"><i class="icon-tag"></i> Name</label>
     <input type="text" id="node-input-name" placeholder="Name">
@@ -67,6 +67,6 @@
   </div>
 </script>
 
-<script type="text/html" data-help-name="freya-terra-sensor">
-  <p>The <strong>Freya Terra Sensor</strong> lorem ipsum ...</p>
+<script type="text/html" data-help-name="sensor-measurement">
+  <p>The <strong>Sensor Measurement</strong> node subscribes to environment sensor measurements from the Freya Terra Sensor driver over D-Bus. Select a specific variable (temperature, humidity, pressure, light, etc.) or receive all measurements.</p>
 </script>

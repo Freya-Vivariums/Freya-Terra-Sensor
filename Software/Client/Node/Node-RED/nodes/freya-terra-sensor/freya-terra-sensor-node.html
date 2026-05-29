@@ -1,0 +1,67 @@
+<!--
+  Freya Vivarium Control System - Freya Terra Sensor Node HTML
+  Copyright (C) 2025 Sanne 'SpuQ' Santens
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<script type="text/javascript">
+  RED.nodes.registerType('freya-terra-sensor',{
+    category: 'Freya Vivariums',
+    color: "#70B62D",
+    defaults: {
+      name: {value:""},
+      variable: {value:"all"},
+      sampleinterval: {value:""}
+    },
+    inputs:0,
+    outputs:2,
+    outputLabels:["control", "status"],
+    icon: "font-awesome/fa-microchip",
+    label: function() {
+      return this.name || "Freya Terra Sensor";
+    }
+  });
+</script>
+
+<script type="text/html" data-template-name="freya-terra-sensor">
+  <div class="form-row">
+    <label for="node-input-name"><i class="icon-tag"></i> Name</label>
+    <input type="text" id="node-input-name" placeholder="Name">
+  </div>
+  <hr/>
+  <div class="form-row">
+    <label for="node-input-variable">Environment Variable</label>
+    <select id="node-input-variable">
+      <option value="all" selected>All measurements</option>
+      <option value="temperature">Temperature [&deg;C]</option>
+      <option value="humidity">Relative Humidity [%]</option>
+      <option value="airquality" disabled>Relative Air Quality [%]</option>
+      <option value="pressure">Barometric Pressure [hPa]</option>
+      <option value="light">Light Intensity [Lux]</option>
+      <option value="uva" disabled>UVA (320-400 nm) [µW/cm²]</option>
+      <option value="uvb" disabled>UVB (280-320 nm) [µW/cm²]</option>
+      <option value="uvc" disabled>UVC (200-280 nm) [µW/cm²]</option>
+    </select>
+    <i class="fa fa-info-circle" title="The environment variable which we want to use"></i>
+  </div>
+  <div class="form-row">
+    <label for="node-input-sampleinterval">Sample Interval (s)</label>
+    <input type="number" id="node-input-sampleinterval" placeholder="5">
+    <i class="fa fa-info-circle" title="The sensor sample rate (seconds)"></i>
+  </div>
+</script>
+
+<script type="text/html" data-help-name="freya-terra-sensor">
+  <p>The <strong>Freya Terra Sensor</strong> lorem ipsum ...</p>
+</script>

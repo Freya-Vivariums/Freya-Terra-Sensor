@@ -18,6 +18,6 @@ tsc;
 rsync -av --include='*/' --include='*.html' --exclude='*' nodes/ ${BUILD_DIR}/nodes/
 
 # Copy all required files to the build folder
-cp -r icons/ package.json LICENSE.txt ${BUILD_DIR}/;
+cp -r icons/ package.json LICENSE.txt README.md ${BUILD_DIR}/;
 
 exit 0;

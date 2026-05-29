@@ -1,6 +1,6 @@
 {
   "name": "@freya-vivariums/freya-terra-sensor-node-red-contrib",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Node-RED node for the Freya Terra Sensor",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",

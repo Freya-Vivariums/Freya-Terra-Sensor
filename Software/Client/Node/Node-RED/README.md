@@ -19,7 +19,7 @@ npm install @freya-vivariums/freya-terra-sensor-node-red-contrib
 ```
 
 ## Node: Freya Terra Sensor
-Connects to the `io.freya.EnvironmentSensorDriver` D-Bus service and emits measurement messages into your flow. Configure which environment variable to receive (`temperature`, `humidity`, `pressure`, `light`, etc.) or select **All measurements** to receive every reading.
+Connects to the `freya.sensor.terra` D-Bus service and emits measurement messages into your flow. Configure which environment variable to receive (`temperature`, `humidity`, `pressure`, `light`, etc.) or select **All measurements** to receive every reading.
 
 ## License & Collaboration
 **Copyright© 2025 Sanne 'SpuQ' Santens**. This project is licensed under the **[MIT License](LICENSE.txt)**. The [Rules & Guidelines](https://github.com/Freya-Vivariums/.github/blob/main/brand/Freya_Trademark_Rules_and_Guidelines.md) apply to the usage of the Freya Vivariums™ brand.

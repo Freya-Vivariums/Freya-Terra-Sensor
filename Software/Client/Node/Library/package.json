@@ -1,6 +1,6 @@
 {
   "name": "@freya-vivariums/freya-terra-sensor",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Node.js SDK for the Freya Terra Sensor D-Bus driver",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",

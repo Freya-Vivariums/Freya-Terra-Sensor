@@ -12,7 +12,7 @@
 PROJECT=Freya
 COMPONENT=sensor-driver
 COMPONENTTYPE=hardware
-SYSTEMSERVICENAME=io.freya.EnvironmentSensorDriver
+SYSTEMSERVICENAME=freya.sensor.terra
 APPDIR=/opt/${PROJECT}/${COMPONENTTYPE}/${COMPONENT}
 
 # Check if this script is running as root. If not, notify the user

@@ -47,14 +47,14 @@ sudo ./install.sh
 
 The service runs automatically and can be monitored with:
 ```bash
-systemctl status io.freya.EnvironmentSensorDriver.service
-journalctl -u io.freya.EnvironmentSensorDriver.service -f
+systemctl status freya.sensor.terra.service
+journalctl -u freya.sensor.terra.service -f
 ```
 
 #### D-Bus Interface
 Applications interact with the sensor via D-Bus on the system bus:
-- **Service:** `io.freya.EnvironmentSensorDriver`
-- **Path:** `/io/freya/EnvironmentSensorDriver`
+- **Service:** `freya.sensor.terra`
+- **Path:** `/freya/sensor/terra`
 - **Signals:** `measurement(variable: string, value: string)` - Emits readings for temperature, humidity, pressure, light, UVA, UVB, and UVC
 
 ## License & Collaboration

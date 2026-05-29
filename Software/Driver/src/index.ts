@@ -32,9 +32,9 @@ const VEML6030_I2C_ADDRESS = 0x10;
 const AS7331_I2C_ADDRESS = 0x74;
 
 // D-Bus configuration
-const DBUS_SERVICE   = 'io.freya.EnvironmentSensorDriver';
-const DBUS_PATH    =  '/io/freya/EnvironmentSensorDriver';
-const DBUS_INTERFACE = 'io.freya.EnvironmentSensorDriver';
+const DBUS_SERVICE   = 'freya.sensor.terra';
+const DBUS_PATH    =  '/freya/sensor/terra';
+const DBUS_INTERFACE = 'freya.sensor.terra';
 // Sensor sample interval limits
 const SAMPLEINT_MIN = 0.5           // 30 seconds
 const SAMPLEINT_MAX = 12*60*60*1000 // 12 hours

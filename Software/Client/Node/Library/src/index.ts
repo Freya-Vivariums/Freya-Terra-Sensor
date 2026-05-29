@@ -25,7 +25,7 @@
  * @file index.ts
  * @module @freya-vivariums/freya-terra-sensor
  * @description
- * Node.js/TypeScript SDK for the io.freya.EnvironmentSensorDriver D-Bus service.
+ * Node.js/TypeScript SDK for the freya.sensor.terra D-Bus service.
  * Provides the SensorDriver class for connecting to and receiving measurements
  * from the Freya Terra Sensor driver.
  *
@@ -70,9 +70,9 @@ export class SensorDriver extends EventEmitter {
    * Initialize D-Bus connection and proxy interface
    */
   async initDriverConnection(): Promise<void> {
-    const service = this.bus.getService('io.freya.EnvironmentSensorDriver');
+    const service = this.bus.getService('freya.sensor.terra');
     this.iface = await new Promise((resolve, reject) => {
-      service.getInterface('/io/freya/EnvironmentSensorDriver', 'io.freya.EnvironmentSensorDriver', (err: Error | null, iface: any) => {
+      service.getInterface('/freya/sensor/terra', 'freya.sensor.terra', (err: Error | null, iface: any) => {
         if (err) {
           reject(err);
         } else {

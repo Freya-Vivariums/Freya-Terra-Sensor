@@ -12,7 +12,7 @@
 PROJECT=Freya
 COMPONENT=sensor-driver
 COMPONENTTYPE=hardware
-SYSTEMSERVICENAME=io.freya.EnvironmentSensorDriver
+SYSTEMSERVICENAME=freya.sensor.terra
 REPONAME=${PROJECT}-${COMPONENT}
 REPOOWNER=Freya-Vivariums
 APPDIR=/opt/${PROJECT}/${COMPONENTTYPE}/${COMPONENT}

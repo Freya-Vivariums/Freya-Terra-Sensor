@@ -1,5 +1,5 @@
 [Unit]
-Description=Freya Environment Sensor Driver
+Description=Freya Terra Sensor Driver
 Documentation=https://github.com/Freya-Vivariums
 After=multi-user.target dbus.service
 

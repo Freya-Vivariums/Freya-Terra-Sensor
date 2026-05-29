@@ -12,7 +12,7 @@ DEFAULT_HOST=192.168.1.113
 PROJECT=Freya
 COMPONENT=sensor-driver
 COMPONENTTYPE=hardware
-SERVICENAME="io.freya.EnvironmentSensorDriver"
+SERVICENAME="freya.sensor.terra"
 APPDIR=/opt/${PROJECT}/${COMPONENTTYPE}/${COMPONENT}
 
 # Let's start with an empty terminal

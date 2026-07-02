@@ -112,8 +112,14 @@ async function main() {
       driver.pushMeasurement('temperature', data.temperature.toFixed(1));
       driver.pushMeasurement('humidity', data.humidity.toFixed(1));
       driver.pushMeasurement('pressure', data.pressure.toFixed(1));
-      driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(0));
-      driver.pushMeasurement('airquality', data.airQuality.toFixed(0));
+      // Gas resistance is only meaningful once the heater has stabilised and the
+      // sensor asserts gas_valid_r. Suppress the measurement otherwise so
+      // downstream consumers don't see a warm-up transient. Air-quality
+      // classification (previously 'airquality') is now a Node-RED-side
+      // baseline-deviation concern and is no longer emitted by the driver.
+      if (data.gasValid && data.gasResistance !== null) {
+        driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(0));
+      }
 
       data = await veml6030.read();
       driver.pushMeasurement('light', String(data.lux.toFixed(1)));

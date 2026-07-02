@@ -35,6 +35,16 @@ class BME680 {
     private res_heat_val!: number;
     private range_sw_err!: number;
     private t_fine!: number;  // temperature fine value for compensation
+    // Cached ambient temperature (°C) used to seed the heater-resistance calc.
+    // Set to the last compensated temperature after each read(); undefined until
+    // the first successful read, at which point 25 °C is used (see calcResHeat()).
+    private lastAmbientC?: number;
+    // Gas heater target (°C). 320 °C is the value Bosch cites in BME680 app
+    // notes for VOC/IAQ indoor air-quality use. Kept as a constant for clarity.
+    private readonly heaterTargetC: number = 320;
+    // Gas heater wait/soak duration written to gas_wait_0 (register 0x64).
+    // 100 ms is the Bosch-recommended starting point for IAQ profile 0.
+    private readonly heaterWaitMs: number = 100;
 
     /**
      * Initialize the BME680 sensor.
@@ -104,7 +114,10 @@ class BME680 {
         // Read additional compensation parameters from separate registers
         const reg02 = await this.i2c.readByte(this.address, 0x02);
         this.res_heat_range = (reg02 & 0x30) >> 4;             // bits 4-5 of 0x02
-        this.res_heat_val = await this.i2c.readByte(this.address, 0x00);  // signed value
+        // res_heat_val is documented as a signed 8-bit value (datasheet §3.3.5,
+        // "Heater control"). readByte() returns unsigned, so sign-extend.
+        const rhvRaw = await this.i2c.readByte(this.address, 0x00);
+        this.res_heat_val = rhvRaw > 127 ? rhvRaw - 256 : rhvRaw;
         let reg04 = await this.i2c.readByte(this.address, 0x04);
         this.range_sw_err = (reg04 & 0xF0) >> 4;
         if (this.range_sw_err > 7) { 
@@ -120,21 +133,85 @@ class BME680 {
         const osrs_p = 0x03;  // Pressure oversample = 4x
         const mode = 0x00;    // sleep mode (we'll set forced mode when reading)
         await this.i2c.writeByte(this.address, 0x74, (osrs_t << 5) | (osrs_p << 2) | mode);
+
+        // Configure the gas heater wait/soak time in profile 0 (register 0x64,
+        // gas_wait_0). Heater target resistance (res_heat_0, 0x5A) is (re)written
+        // on every read() using the most recent ambient temperature.
+        // Datasheet §5.3.3.3 (gas_wait_x encoding: 6-bit timer + 2-bit multiplier).
+        await this.i2c.writeByte(this.address, 0x64, this.calcGasWait(this.heaterWaitMs));
+    }
+
+    /**
+     * Encode a millisecond duration into the gas_wait_x register format
+     * (datasheet §5.3.3.3): bits 0..5 are the timer (0..63) and bits 6..7 are the
+     * multiplication factor (×1, ×4, ×16, ×64). Values ≥0xFC0 ms clamp to 0xFF.
+     */
+    private calcGasWait(durMs: number): number {
+        if (durMs >= 0xFC0) return 0xFF;
+        let dur = Math.max(0, Math.floor(durMs));
+        let factor = 0;
+        while (dur > 0x3F) {
+            dur = Math.floor(dur / 4);
+            factor += 1;
+        }
+        return (dur + factor * 64) & 0xFF;
+    }
+
+    /**
+     * Compute the res_heat_x register value that targets a given heater
+     * temperature (in °C) at a given ambient temperature (in °C). This is the
+     * integer form of the Bosch reference `calc_res_heat` (datasheet §3.3.5,
+     * "Heater control") using par_GH1/2/3, res_heat_range and res_heat_val.
+     *
+     * The C reference uses int32 arithmetic; here we mirror it in JS floats and
+     * only truncate at the final uint8 conversion — the intermediate magnitudes
+     * fit comfortably inside a double's 53-bit mantissa.
+     */
+    private calcResHeat(targetTempC: number, ambientTempC: number): number {
+        // Bosch reference (int32):
+        //   var1 = ((amb * par_gh3) / 1000) * 256
+        //   var2 = (par_gh1 + 784) * ((((par_gh2 + 154009) * target * 5) / 100 + 3276800) / 10)
+        //   var3 = var1 + var2/2
+        //   var4 = var3 / (res_heat_range + 4)
+        //   var5 = 131 * res_heat_val + 65536
+        //   heatr_res_x100 = ((var4 / var5) - 250) * 34
+        //   heatr_res = (uint8_t)((heatr_res_x100 + 50) / 100)
+        const var1 = Math.trunc((ambientTempC * this.par_GH3) / 1000) * 256;
+        const var2 = (this.par_GH1 + 784) *
+            Math.trunc((Math.trunc(((this.par_GH2 + 154009) * targetTempC * 5) / 100) + 3276800) / 10);
+        const var3 = var1 + Math.trunc(var2 / 2);
+        const var4 = Math.trunc(var3 / (this.res_heat_range + 4));
+        const var5 = 131 * this.res_heat_val + 65536;
+        const heatr_res_x100 = Math.trunc((Math.trunc(var4 / var5) - 250) * 34);
+        const heatr_res = Math.trunc((heatr_res_x100 + 50) / 100);
+        // Clamp to uint8 range (res_heat_x is an 8-bit register).
+        return Math.max(0, Math.min(255, heatr_res));
     }
 
     /**
     * Perform a forced-mode measurement and return compensated results.
-    * @returns Object with temperature (°C), pressure (hPa), humidity (%RH), gasResistance (Ω), airQuality (0-5).
+    * @returns Object with temperature (°C), pressure (hPa), humidity (%RH),
+    *          gasResistance (Ω or null when the reading is not valid) and
+    *          gasValid (true iff heat_stab_r AND gas_valid_r are set).
     */
     async read(): Promise<{
-        temperature: number,      // in °C
-        pressure: number,         // in hPa
-        humidity: number,         // in %RH
-        gasResistance: number,    // in Ohms
-        airQuality: number        // 0 (bad) to 5 (excellent) - requires 5min heater warm-up, affected by high humidity >80% RH
+        temperature: number,               // in °C
+        pressure: number,                  // in hPa
+        humidity: number,                  // in %RH
+        gasResistance: number | null,      // in Ohms, or null if not yet valid
+        gasValid: boolean                  // true iff heat_stab_r AND gas_valid_r
     }> {
-        // Ensure gas sensor is enabled for this measurement (set run_gas = 1 for profile 0)
-        await this.i2c.writeByte(this.address, 0x71, 0x10);  // ctrl_gas (0x71): 0x10 sets bit4 (run_gas), profile 0
+        // Configure the heater target for profile 0 before triggering a forced-
+        // mode measurement. res_heat_0 is register 0x5A (datasheet §5.3.3.2).
+        // Ambient-temperature seed: use the most recent compensated temperature
+        // if we have one, otherwise 25 °C (assumption documented on the field).
+        const ambientC = this.lastAmbientC ?? 25;
+        await this.i2c.writeByte(this.address, 0x5A, this.calcResHeat(this.heaterTargetC, ambientC));
+
+        // Enable the gas sensor for this measurement and select heater profile 0.
+        // ctrl_gas_1 (0x71): bit 4 = run_gas, bits 0..3 = nb_conv (profile index).
+        // 0x10 = run_gas=1, profile=0. Must be written AFTER res_heat_0/gas_wait_0.
+        await this.i2c.writeByte(this.address, 0x71, 0x10);
 
         // Set sensor to forced mode to start measurement
         let ctrl_meas = await this.i2c.readByte(this.address, 0x74);
@@ -151,28 +228,30 @@ class BME680 {
         // Extract raw ADC values from the data buffer
         const adc_temp = ((data[5] << 12) | (data[6] << 4) | (data[7] >> 4)) >>> 0;
         const adc_pres = ((data[2] << 12) | (data[3] << 4) | (data[4] >> 4)) >>> 0;
-        //const adc_pres = ((data[2] << 16) | (data[3] << 8) | data[4]) >>> 0;
-        //const adc_temp = ((data[5] << 16) | (data[6] << 8) | data[7]) >>> 0;
         const adc_hum  = ((data[8] << 8) | data[9]) >>> 0;
-        // Gas resistance raw: 10 bits from data[13..14], and gas range in low 4 bits of data[14]
-
+        // Gas resistance raw: 10 bits from data[13..14], and gas range in low 4 bits of data[14].
         const adc_gas_res = (((data[13] << 8) | data[14]) >> 6) >>> 0;
         const gas_range = data[14] & 0x0F;
-        /*
-        console.log("[DEBUG] Raw ADC values:");
-        console.log("adc_pres : ", adc_pres);
-        console.log("adc_temp : ", adc_temp);
-        console.log("adc_hum : ", adc_hum);
-        console.log("adc_gas_res : ", adc_gas_res);
-        */
+
+        // Gas status flags live in register 0x2B (data[14] within this block).
+        // Datasheet §5.3.5.5: bit 5 = gas_valid_r, bit 4 = heat_stab_r.
+        const gasValid = (data[14] & 0x20) !== 0 && (data[14] & 0x10) !== 0;
+
         // Compute compensated values:
         const temperature = this.compensateTemperature(adc_temp);         // °C
         const pressure = this.compensatePressure(adc_pres) / 100;         // Pa -> hPa
         const humidity = this.compensateHumidity(adc_hum);                // %RH
-        const gasResistance = this.compensateGas(adc_gas_res, gas_range); // Ω
-        const airQuality = this.classifyAirQuality(gasResistance);
+        // Only expose a gas resistance number when the sensor reports the reading
+        // as valid AND the heater has stabilised; otherwise null so downstream
+        // consumers don't treat a warm-up transient as a real measurement.
+        const gasResistance = gasValid
+            ? this.compensateGas(adc_gas_res, gas_range)
+            : null;
 
-        return { temperature, pressure, humidity, gasResistance, airQuality };
+        // Cache the latest ambient temperature for the next heater-resistance calc.
+        this.lastAmbientC = temperature;
+
+        return { temperature, pressure, humidity, gasResistance, gasValid };
     }
 
   /**
@@ -230,8 +309,21 @@ class BME680 {
                   + (((temp_scaled * ((temp_scaled * this.par_H5) / 100)) >> 6) / 100) 
                   + 16384)) >> 10;
         var1 = var1 * var2;
-        var2 = (this.par_H6 * 16384) + (this.par_H7 * temp_scaled) / 2;
-        var2 = var2 >> 9;
+        // Datasheet §3.11 / Bosch integer reference `calc_humidity`:
+        //   var4 = par_h6 << 7
+        //   var4 = (var4 + (temp_scaled * par_h7) / 100) >> 4
+        //   var5 = ((var3 >> 14) * (var3 >> 14)) >> 10          // var3 here == var1 below
+        //   var6 = (var4 * var5) >> 1
+        //   H    = (((var3 + var6) >> 10) * 1000) >> 12
+        // We keep the existing variable names (var1 plays the role of Bosch's
+        // var3, and the local var2/var3/var4 below carry the H6/H7 contribution)
+        // and fold the trailing shifts so the final `(var2 * var3) >> 15` still
+        // matches Bosch's `(var4 * ((var3>>14)^2) >> 10) >> 1`:
+        //   var2_here = ((par_H6 << 7) + (par_H7 * temp_scaled) / 100)
+        //             = Bosch_var4 * 16   (i.e. the pre-`>> 4` value)
+        // The extra factor of 16 (=2^4) then cancels with the combined >>15
+        // below (== >>11 + >>4), reproducing Bosch bit-for-bit for this term.
+        var2 = (this.par_H6 * 128) + ((this.par_H7 * temp_scaled) / 100);
         const var3 = (var1 >> 14) * (var1 >> 14);
         const var4 = (var2 * var3) >> 15;
         const H = ((var1 + var4) >> 10) * 1000 >> 12;
@@ -240,29 +332,6 @@ class BME680 {
         if (humidity > 100) humidity = 100;
         if (humidity < 0) humidity = 0;
         return humidity;
-    }
-
-    /**
-     * Classify gas resistance into a 0–5 air quality level.
-     *
-     * Based on observed BME680 gas resistance bands (community data from
-     * Pimoroni, G6EJD, Home Assistant). These are approximate and assume
-     * the sensor heater has been running for at least 5 minutes.
-     *
-     * 5 = Excellent  (> 400 kΩ) — clean outdoor air or very well ventilated
-     * 4 = Good       (> 250 kΩ) — normal clean indoor air
-     * 3 = Fair       (> 150 kΩ) — acceptable, typical lived-in room
-     * 2 = Poor       (> 75 kΩ)  — stale air, ventilation recommended
-     * 1 = Bad        (> 25 kΩ)  — significant VOC presence
-     * 0 = Hazardous  (≤ 25 kΩ)  — heavily polluted, investigate immediately
-     */
-    private classifyAirQuality(gasResistance: number): number {
-        if (gasResistance > 400000) return 5;
-        if (gasResistance > 250000) return 4;
-        if (gasResistance > 150000) return 3;
-        if (gasResistance > 75000) return 2;
-        if (gasResistance > 25000) return 1;
-        return 0;
     }
 
   /**

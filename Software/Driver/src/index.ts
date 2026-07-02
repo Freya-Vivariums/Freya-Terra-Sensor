@@ -112,16 +112,16 @@ async function main() {
       driver.pushMeasurement('temperature', data.temperature.toFixed(1));
       driver.pushMeasurement('humidity', data.humidity.toFixed(1));
       driver.pushMeasurement('pressure', data.pressure.toFixed(1));
-      //driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(0));
+      driver.pushMeasurement('gasresistance', data.gasResistance.toFixed(0));
       driver.pushMeasurement('airquality', data.airQuality.toFixed(0));
 
       data = await veml6030.read();
-      driver.pushMeasurement('light', String(data.lux));
+      driver.pushMeasurement('light', String(data.lux.toFixed(1)));
 
       data = await as7331.read();
-      driver.pushMeasurement('uva', String(data.uva));
-      driver.pushMeasurement('uvb', String(data.uvb));
-      driver.pushMeasurement('uvc', String(data.uvc));
+      driver.pushMeasurement('uva', String(data.uva.toFixed(1)));
+      driver.pushMeasurement('uvb', String(data.uvb.toFixed(1)));
+      driver.pushMeasurement('uvc', String(data.uvc.toFixed(1)));
       
     }, driver.sampleInterval);
   });

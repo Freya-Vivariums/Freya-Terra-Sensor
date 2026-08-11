@@ -44,6 +44,9 @@ done
 # success.
 problems=0
 
+# Set when the I2C bus was enabled but will not exist until the device reboots.
+REBOOT_REQUIRED=false
+
 
 # Check if this script is running as root. If not, notify the user
 # to run this script again as root and cancel the installtion process
@@ -114,6 +117,38 @@ else
     else
         echo -e "\e[0;33mFailed! Exit.\e[0m";
         exit 1;
+    fi
+fi
+
+# Enable the I2C bus. The Terra sensors (BME680, VEML6030, AS7331) sit on the
+# Raspberry Pi's I2C bus, which is disabled by default - without it there is no
+# /dev/i2c-1 and this driver cannot read anything.
+# raspi-config is the supported way to enable it: it writes to the config.txt
+# the firmware actually reads, which is not in the same place on every
+# Raspberry Pi OS version, and it updates /etc/modules as well.
+echo -n -e "\e[0mEnabling the I2C bus \e[0m"
+if [ -e /dev/i2c-1 ]; then
+    echo -e "\e[0;32m[Already enabled] \e[0m";
+elif ! which raspi-config >/dev/null 2>&1; then
+    # Not a Raspberry Pi, or a system without the Raspberry Pi tooling. Nothing
+    # safe to edit here, so say what is missing and let the user handle it.
+    echo -e "\e[0;33m[Skipped] \e[0m";
+    echo -e "\e[0m    raspi-config is not available, so the I2C bus cannot be enabled here.\e[0m";
+    echo -e "\e[0m    Enable it by hand: this driver needs /dev/i2c-1 to reach the sensors.\e[0m";
+    problems=$((problems+1));
+else
+    i2c_output=$(raspi-config nonint do_i2c 0 2>&1)
+    if [ $? -eq 0 ]; then
+        echo -e "\e[0;32m[Success]\e[0m"
+        # dtparam is applied by the firmware at boot, so the bus node normally
+        # only appears after a restart.
+        if [ ! -e /dev/i2c-1 ]; then
+            REBOOT_REQUIRED=true
+        fi
+    else
+        echo -e "\e[0;33m[Failed]\e[0m";
+        echo "${i2c_output}" | sed 's/^/    /' >&2
+        problems=$((problems+1));
     fi
 fi
 
@@ -257,6 +292,15 @@ fi
 ##
 #   Finish installation
 ##
+
+# Always report a pending reboot, embedded or not: the driver is installed and
+# running but cannot read a single sensor until the I2C bus exists.
+if [ "${REBOOT_REQUIRED}" = true ]; then
+    echo ""
+    echo -e "\e[0;33mThe I2C bus was enabled, but /dev/i2c-1 does not exist yet.\e[0m"
+    echo -e "\e[0;33mReboot this device before the ${PROJECT} ${COMPONENT} can read the sensors.\e[0m"
+fi
+
 if [ ${problems} -eq 0 ]; then
     # Only the standalone run announces the result; when embedded the
     # parent installer reports it.
@@ -267,6 +311,11 @@ if [ ${problems} -eq 0 ]; then
     fi
     # Remove this script
     rm -- "$0"
+    # Exit 2 means "installed, but this device must be rebooted first", so a
+    # calling installer can pass that on instead of reporting plain success.
+    if [ "${REBOOT_REQUIRED}" = true ]; then
+        exit 2;
+    fi
     exit 0;
 fi
 

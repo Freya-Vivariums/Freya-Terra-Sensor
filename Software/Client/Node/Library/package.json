@@ -1,6 +1,6 @@
 {
   "name": "@freya-vivariums/freya-terra-sensor",
-  "version": "0.0.1",
+  "version": "0.4.0",
   "description": "Node.js SDK for the Freya Terra Sensor D-Bus driver",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
@@ -21,7 +21,8 @@
   "types": "build/index.d.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "bash ./scripts/build.sh"
+    "build": "bash ./scripts/build.sh",
+    "prepublishOnly": "npm run build"
   },
   "engines": {
     "node": ">=18.0.0"

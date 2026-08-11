@@ -1,6 +1,6 @@
 {
   "name": "@freya-vivariums/freya-terra-sensor-node-red-contrib",
-  "version": "0.0.4",
+  "version": "0.4.0",
   "description": "Node-RED node for the Freya Terra Sensor",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
@@ -20,20 +20,24 @@
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "bash ./scripts/build.sh"
+    "build": "bash ./scripts/build.sh",
+    "prepublishOnly": "npm run build && bash ./scripts/verify.sh"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "node-red": {
     "version": ">=4.0.9",
     "nodes": {
-      "sensor-measurement": "nodes/sensor-measurement/sensor-measurement-node.js"
+      "sensor-measurement": "build/nodes/sensor-measurement/sensor-measurement-node.js"
     }
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
-    "icons",
-    "nodes"
+    "build",
+    "icons"
   ],
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -41,6 +45,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@freya-vivariums/freya-terra-sensor": "^0.0.1"
+    "@freya-vivariums/freya-terra-sensor": "^0.4.0"
   }
 }

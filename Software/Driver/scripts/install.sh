@@ -155,14 +155,18 @@ fi
 #   Actually installing the application
 ##
 
-# Install package dependencies
+# Install package dependencies.
+# The service runs the prebuilt build/index.js that ships with the release, so
+# the device needs the runtime dependencies only. --omit=dev keeps the build
+# tooling off the device.
 echo -n -e "\e[0mInstalling dependencies \e[0m"
-npm install --prefix ${APPDIR} > /dev/null 2>&1
+npm_output=$(npm install --omit=dev --prefix ${APPDIR} 2>&1)
 # Check if the last command succeeded
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
     echo -e "\e[0;33mFailed! Exit.\e[0m";
+    echo "${npm_output}" >&2
     exit 1;
 fi
 

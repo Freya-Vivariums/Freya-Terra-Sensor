@@ -1,9 +1,17 @@
 name: Publish Node.js client packages
 
+# PAUSED: this workflow no longer publishes automatically on release.
+# These packages are published to npm by hand for now. Publishing still
+# builds and verifies the package either way, because that happens in
+# each package's prepublishOnly, not here.
+#
+# To resume automatic publishing, restore the release trigger:
+#   on:
+#     release:
+#       types:
+#         - created
 on:
-  release:
-    types:
-      - created
+  workflow_dispatch:
 
 jobs:
   publish-library:
@@ -33,6 +41,9 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  # Runs after the SDK library, which this package depends on by version range:
+  # verify.sh refuses to publish against a library version that is not on the
+  # registry yet.
   publish-node-red:
     name: Publish Node-RED node
     needs: publish-library
@@ -53,11 +64,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build package
-        run: npm run build
-
+      # prepublishOnly builds the package and verifies that what npm is about
+      # to upload is loadable by Node-RED, so no separate build step is needed.
+      # Access is set by publishConfig in package.json.
       - name: Publish to npm
-        working-directory: Software/Client/Node/Node-RED/build
-        run: npm publish --access public
+        run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -1,6 +1,6 @@
 {
   "name": "freya-environment-sensor-driver",
-  "version": "0.0.1",
+  "version": "0.4.0",
   "description": "System driver for the Freya environment sensor",
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",

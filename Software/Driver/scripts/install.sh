@@ -13,9 +13,37 @@ PROJECT=Freya
 COMPONENT=sensor-driver
 COMPONENTTYPE=hardware
 SYSTEMSERVICENAME=freya.sensor.terra
-REPONAME=${PROJECT}-${COMPONENT}
+# The GitHub repository this driver is released from. Used both for the release
+# API lookup and to recognise the release asset, which the release workflow
+# names after the repository.
+REPONAME=Freya-Terra-Sensor
 REPOOWNER=Freya-Vivariums
 APPDIR=/opt/${PROJECT}/${COMPONENTTYPE}/${COMPONENT}
+
+##
+#   Invocation
+#   This installer is run directly by a user, and also by the Freya Vivarium
+#   Control System installer. Running inside another installer it must not take
+#   over the screen or announce that the installation is finished - the parent
+#   installer owns both of those.
+##
+EMBEDDED=false
+for argument in "$@"; do
+    case "${argument}" in
+        --embedded) EMBEDDED=true ;;
+        *)
+            echo -e "\e[0;31mUnknown option '${argument}'\e[0m" >&2
+            echo "Usage: install.sh [--embedded]" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Steps that report [Failed] without aborting are counted, so the closing
+# message can tell the truth about what happened instead of always claiming
+# success.
+problems=0
+
 
 # Check if this script is running as root. If not, notify the user
 # to run this script again as root and cancel the installtion process
@@ -25,8 +53,11 @@ if [ "$EUID" -ne 0 ]; then
     exit 1;
 fi
 
-# Continue with a clean screen
-clear;
+# Continue with a clean screen - but never when running inside another
+# installer, where it would wipe everything printed so far.
+if [ "${EMBEDDED}" != true ]; then
+    clear;
+fi
 
 ##
 #   Dependencies
@@ -180,6 +211,7 @@ if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
     echo -e "\e[0;33m[Failed]\e[0m"
+    problems=$((problems+1));
 fi
 # Reloading the DBus system service
 echo -e -n '\e[mRestarting the DBus system service \e[m'
@@ -187,7 +219,8 @@ systemctl reload dbus.service
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
-    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0;33m[Failed]\e[0m"
+    problems=$((problems+1));
 fi
 
 # Install the application's systemd service
@@ -197,7 +230,8 @@ systemctl daemon-reload
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
-    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0;33m[Failed]\e[0m"
+    problems=$((problems+1));
 fi
 # Enable the application's service to run on boot
 echo -e -n '\e[mEnabling systemd service to run on boot \e[m'
@@ -205,7 +239,8 @@ systemctl enable ${SYSTEMSERVICENAME}.service
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
-    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0;33m[Failed]\e[0m"
+    problems=$((problems+1));
 fi
 
 # Start the service
@@ -214,17 +249,31 @@ systemctl start ${SYSTEMSERVICENAME}.service
 if [ $? -eq 0 ]; then
     echo -e "\e[0;32m[Success]\e[0m"
 else
-    echo -e "\e[0;33m[Failed]\e[0m";
+    echo -e "\e[0;33m[Failed]\e[0m"
+    problems=$((problems+1));
 fi
 
 
 ##
 #   Finish installation
 ##
-echo ""
-echo -e "The \033[1m${PROJECT} ${COMPONENT}\033[0m was successfully installed!"
-echo ""
+if [ ${problems} -eq 0 ]; then
+    # Only the standalone run announces the result; when embedded the
+    # parent installer reports it.
+    if [ "${EMBEDDED}" != true ]; then
+        echo ""
+        echo -e "The \033[1m${PROJECT} ${COMPONENT}\033[0m was successfully installed!"
+        echo ""
+    fi
+    # Remove this script
+    rm -- "$0"
+    exit 0;
+fi
+
+# Something failed without aborting the installation. Say so, and exit
+# non-zero so a calling script sees it too.
+echo -e "\e[0;33m${PROJECT} ${COMPONENT}: ${problems} step(s) failed - the driver may not run.\e[0m" >&2
 # Remove this script
 rm -- "$0"
 
-exit 0;
+exit 1;

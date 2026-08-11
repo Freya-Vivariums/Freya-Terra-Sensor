@@ -1,0 +1,66 @@
+name: Package the sensor driver
+
+# 'published' rather than 'created': a release that is prepared as a draft and
+# published later does not fire the 'created' event.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package-driver:
+    name: Build and package the driver
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Software/Driver
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # This driver has no dependency on the SDK library, so it can be packaged
+      # independently of what is published to npm.
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build the driver
+        run: npm run build
+
+      # install.sh unpacks this tarball straight into
+      # /opt/Freya/hardware/sensor-driver and then moves the D-Bus policy and
+      # the systemd unit out of it by name, so both must sit at the root of the
+      # tarball alongside package.json and build/.
+      - name: Gather the files for the package
+        run: |
+          mkdir tempdir
+          cp -r package.json build tempdir/
+          cp config/freya.sensor.terra.service tempdir/
+          cp config/freya.sensor.terra.conf tempdir/
+          cp scripts/uninstall.sh tempdir/
+          cp LICENSE.txt tempdir/
+          chmod +x tempdir/uninstall.sh
+
+      # install.sh looks for an asset named after the repository, as
+      # <repository>-v<x>.<y>.<z>.tar.gz - keep this in step with REPONAME in
+      # Software/Driver/scripts/install.sh.
+      - name: Create the tarball
+        run: tar -C tempdir -zcvf ${{ github.event.repository.name }}-${{ github.event.release.tag_name }}.tar.gz .
+
+      # Paths are relative to the repository root, not to the working-directory
+      # default above.
+      - name: Upload the release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Software/Driver/${{ github.event.repository.name }}-${{ github.event.release.tag_name }}.tar.gz
+            Software/Driver/scripts/install.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

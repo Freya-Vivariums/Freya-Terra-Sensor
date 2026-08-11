@@ -5,7 +5,7 @@
   "author": "Sanne 'SpuQ' Santens",
   "license": "MIT",
   "homepage": "https://github.com/Freya-Vivariums",
-  "public": false,
+  "private": false,
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

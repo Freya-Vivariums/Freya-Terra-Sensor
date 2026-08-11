@@ -7,6 +7,40 @@
 #
 #   Copyright© 2025 Sanne “SpuQ” Santens
 #   Released under the MIT License (see LICENSE.txt)
+#
+#  ----------------------------------------------------------------------------
+#   Contract
+#  ----------------------------------------------------------------------------
+#
+#   Usage:  install.sh [--embedded]
+#
+#     --embedded   this installer is running inside another one (the Freya
+#                  Vivarium Control System installer). It then does not clear
+#                  the screen and does not print its own closing banner, since
+#                  the parent owns both. Failures are still printed either way.
+#
+#   Exit codes, which the parent installer relies on:
+#
+#     0   installed
+#     1   one or more steps failed - the driver may not run
+#     2   installed, but this device must be rebooted before the hardware works
+#
+#   This driver returns 2 after enabling the I2C bus: the overlay is applied by
+#   the firmware at boot, so /dev/i2c-1 does not exist until the Pi restarts.
+#
+#   'problems' counts steps that reported [Failed] without aborting. It is what
+#   decides between exit 0 and exit 1, so a partial install is never reported as
+#   a success.
+#
+#   Node.js is shared with the rest of the device - Edgeberry and the Freya
+#   Node-RED runtime use the same /usr/bin/node. It is installed here when
+#   missing and otherwise left alone; never upgraded from this script.
+#
+#   This downloads a release asset named after the repository, as
+#   <repository>-v<x>.<y>.<z>.tar.gz, produced by the release workflow in
+#   Freya-Terra-Sensor. REPONAME below must match the repository, and
+#   the release must be tagged vX.Y.Z - a tag like v1.0 or v1.0.0-rc1 does not
+#   match the pattern and the asset will not be found.
 ##
 
 PROJECT=Freya

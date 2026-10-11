@@ -4,3 +4,10 @@ Software/Client/Node/Library/build/
 Software/Client/Node/Library/node_modules/
 Software/Client/Node/Node-RED/build/
 Software/Client/Node/Node-RED/node_modules/
+Hardware/manufacturing
+Hardware/*.kicad_prl
+Hardware/*-backups
+_*
+Documentation/*.step
+Documentation/*.3mf
+Documentation/*.stl

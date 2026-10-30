@@ -8,6 +8,8 @@ Hardware/manufacturing
 Hardware/*.kicad_prl
 Hardware/*-backups
 _*
+Enclosure/manufacturing
+Enclosure/*.FCBak
 Documentation/*.step
 Documentation/*.3mf
 Documentation/*.stl
